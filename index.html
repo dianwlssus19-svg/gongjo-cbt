@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>공공조달관리사 CBT</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#f4f7f9;color:#213547;
+  font-family:system-ui,-apple-system,"Noto Sans KR","Apple SD Gothic Neo",sans-serif;
+  line-height:1.6
+}
+button,textarea,input{font:inherit}
+button{cursor:pointer}
+.wrap{max-width:850px;margin:auto;padding:18px 16px 100px}
+h1{font-size:32px;margin:15px 0 4px}
+.sub{color:#6e7b87;margin-bottom:20px}
+.notice{
+  background:#eaf7fc;border-left:5px solid #36a5d8;
+  padding:16px;border-radius:9px;margin-bottom:22px;font-weight:700
+}
+.grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:14px
+}
+@media(max-width:650px){.grid{grid-template-columns:1fr}}
+.card{
+  background:#fff;border:1px solid #e1e8ed;border-radius:16px;
+  padding:20px;box-shadow:0 7px 25px rgba(30,50,70,.07)
+}
+.card h2,.card h3{margin-top:0}
+.muted{color:#71808d}
+.btn{
+  border:0;border-radius:11px;padding:12px 15px;
+  background:#304e69;color:#fff;font-weight:800;margin:3px
+}
+.btn.green{background:#34b76e}
+.btn.red{background:#e65046}
+.btn.gray{background:#edf2f5;color:#283d4e;border:1px solid #dce5eb}
+.btn:disabled{opacity:.4}
+.subject{
+  background:#304e69;color:white;font-size:20px;font-weight:900;
+  border-radius:9px;padding:13px 17px;margin:25px 0 13px
+}
+.question{
+  background:#fff;border:1px solid #e2e8ed;border-radius:15px;
+  padding:19px;margin:13px 0
+}
+.question h3{font-size:19px;white-space:pre-wrap}
+.choice{
+  display:block;padding:11px;border-radius:9px;margin:5px 0
+}
+.choice:hover{background:#f5f8fa}
+.choice input{margin-right:9px}
+.correct{background:#e7f7ed!important;border:1px solid #70c991}
+.wrong{background:#fff0ef!important;border:1px solid #ef9088}
+.explain{
+  margin-top:15px;padding:14px;background:#f7fbf8;
+  border-left:5px solid #35b86f;border-radius:8px;white-space:pre-wrap
+}
+.result{
+  background:#fff;border:3px solid #35b86f;border-radius:15px;
+  padding:20px;margin:20px 0
+}
+.result.fail{border-color:#e65046}
+.big{font-size:29px;font-weight:950}
+.scores{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:15px 0
+}
+.score{
+  text-align:center;background:#f3f7f9;padding:10px;border-radius:9px
+}
+.score b{display:block;font-size:21px}
+@media(max-width:570px){.scores{grid-template-columns:1fr}}
+.progress{
+  position:sticky;top:0;z-index:30;background:#f4f7f9ee;
+  backdrop-filter:blur(8px);padding:10px 16px;border-bottom:1px solid #dde5ea
+}
+.bar{height:7px;background:#dae4e9;border-radius:20px;overflow:hidden;margin-top:6px}
+.bar div{height:100%;background:#39a4d6}
+.flex{display:flex;justify-content:space-between;font-weight:800}
+.nums{display:flex;flex-wrap:wrap;gap:5px;margin:15px 0}
+.nums button{
+  min-width:37px;height:37px;border-radius:8px;border:1px solid #dce5ea;background:#fff
+}
+.nums button.done{background:#e7f6fc}
+.bottom{
+  position:fixed;bottom:0;left:0;right:0;background:#fff;
+  border-top:1px solid #dde5ea;padding:10px;
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));z-index:40
+}
+.bottom div{max-width:850px;margin:auto;display:flex;gap:8px}
+.bottom button{flex:1}
+.modalbg{
+  display:none;position:fixed;inset:0;background:#0d1924aa;
+  z-index:100;align-items:center;justify-content:center;padding:13px
+}
+.modalbg.show{display:flex}
+.modal{
+  background:#fff;border-radius:16px;padding:18px;width:min(900px,100%);
+  max-height:94vh;overflow:auto
+}
+textarea{
+  width:100%;height:50vh;padding:13px;border-radius:10px;
+  border:1px solid #b9c7d0
+}
+.empty{text-align:center;padding:35px;background:white;border-radius:15px}
+.error{color:#b7372e;font-weight:bold}
+.ok{color:#277b4c;font-weight:bold}
+</style>
+</head>
+
+<body>
+
+<div id="app"></div>
+
+<div id="modal" class="modalbg">
+  <div class="modal">
+    <h2>📥 모의고사 문제 불러오기</h2>
+    <p>
+      채팅에 올렸던 <b>제1회~제4회 문제 전체</b>를 그대로 붙여넣으세요.<br>
+      「문 1. / ①②③④ / [정답] / 해설:」 형식을 자동으로 읽습니다.
+    </p>
+
+    <textarea id="raw"
+      placeholder="여기에 제1회~제4회 전체 문제를 그대로 붙여넣으세요."></textarea>
+
+    <p id="msg" class="muted">
+      한 번 등록하면 현재 브라우저에 저장됩니다.
+    </p>
+
+    <button class="btn green" onclick="importQuestions()">문제 불러오기</button>
+    <button class="btn gray" onclick="closeModal()">닫기</button>
+  </div>
+</div>
+
+<script>
+const DATA_KEY="gongjo_cbt_data";
+const WRONG_KEY="gongjo_cbt_wrong";
+
+let data=load(DATA_KEY,{rounds:[]});
+let wrong=new Set(load(WRONG_KEY,[]));
+
+let state={
+  screen:"home",
+  title:"",
+  mode:"",
+  round:null,
+  questions:[],
+  answers:{},
+  result:null
+};
+
+const NUM=["","①","②","③","④"];
+
+function load(k,d){
+  try{
+    const v=localStorage.getItem(k);
+    return v?JSON.parse(v):d;
+  }catch(e){return d}
+}
+
+function save(){
+  localStorage.setItem(DATA_KEY,JSON.stringify(data));
+  localStorage.setItem(WRONG_KEY,JSON.stringify([...wrong]));
+}
+
+function esc(v=""){
+  return String(v)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
+}
+
+function ansNum(v){
+  return {"①":1,"②":2,"③":3,"④":4,"1":1,"2":2,"3":3,"4":4}[v]||0;
+}
+
+function subjectFromNumber(n){
+  if(n<=30)return 1;
+  if(n<=50)return 2;
+  return 3;
+}
+
+function parseText(raw){
+
+  const lines=raw.replace(/\r/g,"").split("\n");
+
+  let rounds=[];
+  let r=null;
+  let q=null;
+  let subject=null;
+  let mode="";
+
+  function pushQ(){
+    if(!q||!r)return;
+
+    q.text=q.text.trim();
+    q.options=q.options.map(x=>x.trim());
+    q.explanation=q.explanation.trim();
+
+    if(q.num && q.answer && q.options.filter(Boolean).length===4){
+      q.id=`r${r.number}-q${q.num}`;
+      r.questions.push(q);
+    }
+
+    q=null;
+  }
+
+  function pushRound(){
+    pushQ();
+    if(r && r.questions.length) rounds.push(r);
+    r=null;
+  }
+
+  for(const rawline of lines){
+
+    const line=rawline.trim();
+    if(!line)continue;
+
+    let m=line.match(/공공조달관리사\s*제\s*(\d+)회\s*실전\s*모의고사/);
+
+    if(m){
+      pushRound();
+
+      r={
+        number:Number(m[1]),
+        questions:[],
+        subjects:{}
+      };
+
+      subject=null;
+      mode="";
+      continue;
+    }
+
+    if(!r)continue;
+
+    m=line.match(
+      /^제\s*([123])과목\s*[:：]\s*(.*?)(?:\s*\(문\s*\d+\s*[~～\-]\s*\d+\))?$/
+    );
+
+    if(m){
+      pushQ();
+
+      subject=Number(m[1]);
+      r.subjects[subject]=(m[2]||"").trim();
+
+      mode="";
+      continue;
+    }
+
+    m=line.match(/^문\s*(\d+)\.\s*(.*)$/);
+
+    if(m){
+      pushQ();
+
+      const no=Number(m[1]);
+
+      q={
+        num:no,
+        subject:subject||subjectFromNumber(no),
+        text:m[2]||"",
+        options:["","","",""],
+        answer:0,
+        explanation:""
+      };
+
+      mode="question";
+      continue;
+    }
+
+    if(!q)continue;
+
+    m=line.match(/^([①②③④])\s*(.*)$/);
+
+    if(m){
+      const n=ansNum(m[1]);
+      q.options[n-1]=m[2];
+      mode="option"+n;
+      continue;
+    }
+
+    m=line.match(/^\[정답\]\s*([①②③④1-4])/);
+
+    if(m){
+      q.answer=ansNum(m[1]);
+      mode="answer";
+      continue;
+    }
+
+    m=line.match(/^해설\s*[:：]\s*(.*)$/);
+
+    if(m){
+      q.explanation=m[1]||"";
+      mode="explain";
+      continue;
+    }
+
+    if(mode==="question"){
+      q.text+="\n"+line;
+    }
+
+    else if(mode.startsWith("option")){
+      const i=Number(mode.replace("option",""));
+      q.options[i-1]+=" "+line;
+    }
+
+    else if(mode==="explain"){
+      q.explanation+="\n"+line;
+    }
+  }
+
+  pushRound();
+
+  rounds.sort((a,b)=>a.number-b.number);
+
+  return {rounds:rounds};
+}
+
+function importQuestions(){
+
+  const raw=document.getElementById("raw").value.trim();
+  const msg=document.getElementById("msg");
+
+  if(!raw){
+    msg.className="error";
+    msg.textContent="문제 내용을 먼저 붙여넣으세요.";
+    return;
+  }
+
+  const parsed=parseText(raw);
+
+  const total=parsed.rounds.reduce(
+    (s,r)=>s+r.questions.length,0
+  );
+
+  if(!total){
+    msg.className="error";
+    msg.textContent="문제를 인식하지 못했습니다.";
+    return;
+  }
+
+  data=parsed;
+  save();
+
+  msg.className="ok";
+  msg.textContent=
+    parsed.rounds.length+"개 회차, 총 "+total+"문항을 불러왔습니다.";
+
+  setTimeout(()=>{
+    closeModal();
+    goHome();
+  },600);
+}
+
+function allQuestions(){
+
+  let out=[];
+
+  for(const r of data.rounds){
+
+    for(const q of r.questions){
+
+      out.push({
+        ...q,
+        round:r.number,
+        subjectName:r.subjects[q.subject]||("제"+q.subject+"과목")
+      });
+
+    }
+
+  }
+
+  return out;
+}
+
+function homeHTML(){
+
+  const total=data.rounds.reduce(
+    (s,r)=>s+r.questions.length,0
+  );
+
+  let cards="";
+
+  for(const r of data.rounds){
+
+    const w=[...wrong].filter(
+      id=>id.startsWith("r"+r.number+"-")
+    ).length;
+
+    cards+=`
+      <div class="card">
+        <div class="muted">공공조달관리사</div>
+        <h2>제${r.number}회 실전 모의고사</h2>
+        <p>${r.questions.length}문항 · 오답 ${w}문항</p>
+
+        <button class="btn"
+          onclick="startRound(${r.number})">
+          시험 시작
+        </button>
+
+        <button class="btn gray"
+          ${w?"":"disabled"}
+          onclick="startWrong(${r.number})">
+          틀린 문제만
+        </button>
+      </div>
+    `;
+  }
+
+  if(!total){
+
+    return `
+      <div class="wrap">
+
+        <h1>📝 공공조달관리사 CBT</h1>
+        <div class="sub">
+          실전 모의고사 · 자동채점 · 반복 오답
+        </div>
+
+        <div class="notice">
+          처음 한 번만 문제 데이터를 넣으면 됩니다.
+        </div>
+
+        <div class="empty">
+          <h2>아직 문제가 없습니다</h2>
+
+          <p>
+            제1회~제4회 문제 전체를 등록해주세요.
+          </p>
+
+          <button class="btn green"
+            onclick="openModal()">
+            문제 데이터 넣기
+          </button>
+        </div>
+
+      </div>
+    `;
+  }
+
+  return `
+    <div class="wrap">
+
+      <h1>📝 공공조달관리사 CBT</h1>
+
+      <div class="sub">
+        총 ${total}문항 저장됨
+      </div>
+
+      <div class="notice">
+        답안 제출 전에는 정답이 보이지 않습니다.
+        제출 후 과목별 점수와 해설이 표시됩니다.
+      </div>
+
+      <div class="grid">
+
+        ${cards}
+
+        <div class="card">
+          <div class="muted">🔥 누적 오답노트</div>
+          <h2>${wrong.size}문항</h2>
+
+          <p>
+            1~4회에서 틀린 문제만 모아 다시 풉니다.
+          </p>
+
+          <button
+            class="btn red"
+            ${wrong.size?"":"disabled"}
+            onclick="startWrong(null)">
+            누적 오답 풀기
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="muted">🎲 랜덤 실전</div>
+          <h2>랜덤 80문항</h2>
+
+          <p>
+            전체 문제 중 80문항을 무작위로 출제합니다.
+          </p>
+
+          <button class="btn green"
+            onclick="startRandom()">
+            랜덤 시험 시작
+          </button>
+        </div>
+
+      </div>
+
+      <div class="card" style="margin-top:15px">
+
+        <h3>⚙️ 관리</h3>
+
+        <button class="btn gray"
+          onclick="openModal()">
+          문제 다시 등록
+        </button>
+
+        <button class="btn gray"
+          ${wrong.size?"":"disabled"}
+          onclick="clearWrong()">
+          오답 기록 초기화
+        </button>
+
+      </div>
+
+    </div>
+  `;
+}
+
+function startRound(n){
+
+  const r=data.rounds.find(x=>x.number===n);
+
+  if(!r)return;
+
+  const qs=r.questions.map(q=>({
+    ...q,
+    round:r.number,
+    subjectName:r.subjects[q.subject]||("제"+q.subject+"과목")
+  }));
+
+  launch(
+    qs,
+    "제"+n+"회 실전 모의고사",
+    "round",
+    n
+  );
+}
+
+function startWrong(n){
+
+  let qs=allQuestions().filter(q=>
+    wrong.has(q.id) &&
+    (n===null || q.round===n)
+  );
+
+  if(!qs.length){
+    alert("저장된 오답이 없습니다.");
+    return;
+  }
+
+  launch(
+    qs,
+    n===null ? "누적 오답 재시험" : "제"+n+"회 오답 재시험",
+    "wrong",
+    n
+  );
+}
+
+function shuffle(arr){
+
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+
+  return arr;
+}
+
+function startRandom(){
+
+  const qs=shuffle(allQuestions()).slice(0,80);
+
+  launch(
+    qs,
+    "랜덤 실전 80문항",
+    "random",
+    null
+  );
+}
+
+function launch(qs,title,mode,round){
+
+  state={
+    screen:"exam",
+    title:title,
+    mode:mode,
+    round:round,
+    questions:qs,
+    answers:{},
+    result:null
+  };
+
+  render();
+  scrollTo(0,0);
+}
+
+function choose(id,n){
+
+  state.answers[id]=n;
+
+  const y=scrollY;
+  render();
+  requestAnimationFrame(()=>scrollTo(0,y));
+}
+
+function examHTML(){
+
+  const qs=state.questions;
+
+  const answered=Object.keys(state.answers).length;
+
+  const pct=Math.round(
+    answered/qs.length*100
+  );
+
+  let body="";
+
+  for(const s of [1,2,3]){
+
+    const sub=qs.filter(q=>q.subject===s);
+
+    if(!sub.length)continue;
+
+    body+=`
+      <div class="subject">
+        제${s}과목 :
+        ${esc(sub[0].subjectName)}
+      </div>
+    `;
+
+    for(const q of sub){
+
+      let choices="";
+
+      q.options.forEach((o,i)=>{
+
+        const n=i+1;
+
+        choices+=`
+          <label class="choice">
+
+            <input type="radio"
+              name="${q.id}"
+              ${state.answers[q.id]===n?"checked":""}
+              onchange="choose('${q.id}',${n})">
+
+            <b>${NUM[n]}</b>
+            ${esc(o)}
+
+          </label>
+        `;
+      });
+
+      body+=`
+        <div class="question" id="${q.id}">
+
+          <h3>
+            문 ${q.num}. ${esc(q.text)}
+          </h3>
+
+          ${choices}
+
+        </div>
+      `;
+    }
+  }
+
+  const nums=qs.map((q,i)=>`
+    <button
+      class="${state.answers[q.id]?"done":""}"
+      onclick="
+        document.getElementById('${q.id}')
+        .scrollIntoView({
+          behavior:'smooth',
+          block:'center'
+        })
+      ">
+      ${i+1}
+    </button>
+  `).join("");
+
+  return `
+    <div class="progress">
+
+      <div class="flex">
+        <span>${esc(state.title)}</span>
+        <span>${answered}/${qs.length}</span>
+      </div>
+
+      <div class="bar">
+        <div style="width:${pct}%"></div>
+      </div>
+
+    </div>
+
+    <div class="wrap">
+
+      <h1>📝 ${esc(state.title)}</h1>
+
+      <div class="sub">
+        답은 제출 전까지 변경 가능합니다.
+      </div>
+
+      <div class="nums">${nums}</div>
+
+      ${body}
+
+    </div>
+
+    <div class="bottom">
+      <div>
+
+        <button class="btn gray"
+          onclick="goHome()">
+          나가기
+        </button>
+
+        <button class="btn red"
+          onclick="submitExam()">
+          답안 제출 및 채점
+        </button>
+
+      </div>
+    </div>
+  `;
+}
+
+function submitExam(){
+
+  const unanswered=state.questions.filter(
+    q=>!state.answers[q.id]
+  ).length;
+
+  if(
+    unanswered &&
+    !confirm(
+      "아직 "+unanswered+
+      "문제를 풀지 않았습니다. 그대로 채점할까요?"
+    )
+  ){
+    return;
+  }
+
+  grade();
+  state.screen="result";
+
+  render();
+  scrollTo(0,0);
+}
+
+function grade(){
+
+  const rows=state.questions.map(q=>{
+
+    const chosen=state.answers[q.id]||0;
+
+    return {
+      ...q,
+      chosen:chosen,
+      correct:chosen===q.answer
+    };
+  });
+
+  const bySubject={};
+
+  for(const s of [1,2,3]){
+
+    const part=rows.filter(
+      q=>q.subject===s
+    );
+
+    if(!part.length)continue;
+
+    const correct=part.filter(
+      q=>q.correct
+    ).length;
+
+    bySubject[s]={
+      correct:correct,
+      total:part.length,
+      score:Math.round(
+        correct/part.length*1000
+      )/10
+    };
+  }
+
+  for(const q of rows){
+
+    if(q.correct){
+      wrong.delete(q.id);
+    }else{
+      wrong.add(q.id);
+    }
+
+  }
+
+  save();
+
+  const correct=rows.filter(
+    q=>q.correct
+  ).length;
+
+  const score=Math.round(
+    correct/rows.length*1000
+  )/10;
+
+  const failSubject=Object.values(
+    bySubject
+  ).some(x=>x.score<40);
+
+  state.result={
+    rows:rows,
+    correct:correct,
+    total:rows.length,
+    score:score,
+    bySubject:bySubject,
+    failSubject:failSubject,
+    pass:score>=60&&!failSubject
+  };
+}
+
+function resultHTML(){
+
+  const r=state.result;
+
+  const wrongCount=r.rows.filter(
+    q=>!q.correct
+  ).length;
+
+  const verdict=
+    r.pass
+      ?"합격"
+      :"불합격"+(
+        r.failSubject
+          ?" (과락 발생)"
+          :""
+      );
+
+  let scores="";
+
+  for(const [s,v] of Object.entries(r.bySubject)){
+
+    scores+=`
+      <div class="score">
+
+        제${s}과목
+
+        <b>${v.score}점</b>
+
+        ${v.correct}/${v.total}
+
+      </div>
+    `;
+  }
+
+  let review="";
+
+  let prev=null;
+
+  for(const q of r.rows){
+
+    if(prev!==q.subject){
+
+      review+=`
+        <div class="subject">
+          제${q.subject}과목
+        </div>
+      `;
+
+      prev=q.subject;
+    }
+
+    let choices="";
+
+    q.options.forEach((o,i)=>{
+
+      const n=i+1;
+
+      let cls="choice";
+
+      if(n===q.answer){
+        cls+=" correct";
+      }
+
+      if(
+        n===q.chosen &&
+        n!==q.answer
+      ){
+        cls+=" wrong";
+      }
+
+      choices+=`
+        <div class="${cls}">
+          <b>${NUM[n]}</b>
+          ${esc(o)}
+        </div>
+      `;
+    });
+
+    review+=`
+      <div class="question">
+
+        <h3>
+          문 ${q.num}. ${esc(q.text)}
+        </h3>
+
+        ${choices}
+
+        <div class="explain">
+
+          <b>
+            정답 ${NUM[q.answer]}
+            · 내 답 ${
+              q.chosen
+              ?NUM[q.chosen]
+              :"미응답"
+            }
+            ${q.correct?"✅":"❌"}
+          </b>
+
+          <br><br>
+
+          ${esc(
+            q.explanation||"해설 없음"
+          )}
+
+        </div>
+
+      </div>
+    `;
+  }
+
+  return `
+    <div class="wrap">
+
+      <h1>📊 최종 채점 결과</h1>
+
+      <div class="sub">
+        ${esc(state.title)}
+      </div>
+
+      <div class="result ${r.pass?"":"fail"}">
+
+        <div class="big">
+          ${r.score}점 · ${verdict}
+        </div>
+
+        <div class="scores">
+          ${scores}
+        </div>
+
+        <b>
+          정답 ${r.correct}개
+          · 오답 ${wrongCount}개
+        </b>
+
+        ${
+          r.failSubject
+          ?`<p class="error">
+             40점 미만 과목이 있어 과락입니다.
+           </p>`
+          :""
+        }
+
+      </div>
+
+      <button
+        class="btn red"
+        ${wrongCount?"":"disabled"}
+        onclick="retryWrong()">
+        틀린 ${wrongCount}문제만 다시 풀기
+      </button>
+
+      <button
+        class="btn gray"
+        onclick="goHome()">
+        메인으로
+      </button>
+
+      <p class="muted">
+        오답 재시험에서 맞힌 문제는
+        오답노트에서 자동으로 사라집니다.
+      </p>
+
+      ${review}
+
+    </div>
+  `;
+}
+
+function retryWrong(){
+
+  const qs=state.result.rows
+    .filter(q=>!q.correct)
+    .map(q=>{
+
+      const copy={...q};
+
+      delete copy.chosen;
+      delete copy.correct;
+
+      return copy;
+    });
+
+  if(!qs.length)return;
+
+  launch(
+    qs,
+    state.title+" · 틀린 문제",
+    "wrong",
+    state.round
+  );
+}
+
+function openModal(){
+  document.getElementById("modal")
+  .classList.add("show");
+}
+
+function closeModal(){
+  document.getElementById("modal")
+  .classList.remove("show");
+}
+
+function clearWrong(){
+
+  if(
+    confirm(
+      "저장된 오답 기록을 전부 지울까요?"
+    )
+  ){
+
+    wrong.clear();
+    save();
+    render();
+
+  }
+}
+
+function goHome(){
+
+  state={
+    screen:"home",
+    questions:[],
+    answers:{}
+  };
+
+  render();
+  scrollTo(0,0);
+}
+
+function render(){
+
+  document.getElementById("app").innerHTML=
+    state.screen==="exam"
+      ?examHTML()
+      :state.screen==="result"
+      ?resultHTML()
+      :homeHTML();
+}
+
+render();
+</script>
+
+</body>
+</html>

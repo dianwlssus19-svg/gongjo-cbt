@@ -321,8 +321,20 @@ function importQuestions(){
   return;
  }
 
- data=parsed;
- saveBase();
+ const merged = new Map(
+  data.rounds.map(r => [r.number, r])
+);
+
+for(const r of parsed.rounds){
+  merged.set(r.number, r);
+}
+
+data = {
+  rounds:[...merged.values()]
+    .sort((a,b)=>a.number-b.number)
+};
+
+saveBase();
 
  msg.className="ok";
 

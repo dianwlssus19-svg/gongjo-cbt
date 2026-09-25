@@ -110,7 +110,308 @@ textarea{
 .ok{color:#277b4c;font-weight:bold}
 </style>
 </head>
+<script>
+/* ===== 시험 중간저장 + 이어풀기 ===== */
 
+const PROGRESS_KEY = "gongjo_cbt_progress_v1";
+let progressScrollTimer = null;
+
+function saveExamProgress(){
+
+  if(
+    state.screen !== "exam" ||
+    !state.questions ||
+    !state.questions.length
+  ) return;
+
+  const progress = {
+    title: state.title,
+    mode: state.mode,
+    round: state.round,
+
+    /* 문제 전체를 또 저장하지 않고 ID만 저장 */
+    questionIds: state.questions.map(q => q.id),
+
+    answers: state.answers || {},
+
+    /* 마지막으로 보고 있던 문제 */
+    currentId: state.currentId || null,
+
+    /* 혹시 문제 위치를 못 찾을 경우 대비 */
+    scrollY: window.scrollY || 0,
+
+    savedAt: Date.now()
+  };
+
+  localStorage.setItem(
+    PROGRESS_KEY,
+    JSON.stringify(progress)
+  );
+}
+
+
+function getExamProgress(){
+
+  try {
+
+    const raw =
+      localStorage.getItem(PROGRESS_KEY);
+
+    if(!raw) return null;
+
+    return JSON.parse(raw);
+
+  } catch(e) {
+
+    return null;
+
+  }
+}
+
+
+function deleteExamProgress(){
+
+  localStorage.removeItem(PROGRESS_KEY);
+
+}
+
+
+/* 저장된 문제 ID를 실제 문제로 다시 복원 */
+function resumeExamProgress(){
+
+  const p = getExamProgress();
+
+  if(
+    !p ||
+    !p.questionIds ||
+    !p.questionIds.length
+  ){
+    return false;
+  }
+
+  const questionMap =
+    new Map(
+      allQuestions().map(q => [q.id,q])
+    );
+
+  const qs =
+    p.questionIds
+      .map(id => questionMap.get(id))
+      .filter(Boolean);
+
+  if(!qs.length){
+    return false;
+  }
+
+  state = {
+    screen: "exam",
+    title: p.title || "이어 풀기",
+    mode: p.mode || "round",
+    round: p.round ?? null,
+    questions: qs,
+    answers: p.answers || {},
+    result: null,
+    currentId: p.currentId || null
+  };
+
+  render();
+
+
+  /*
+    페이지가 그려진 다음
+    마지막으로 보고 있던 문제로 이동
+  */
+  setTimeout(() => {
+
+    if(
+      p.currentId &&
+      document.getElementById(p.currentId)
+    ){
+
+      document
+        .getElementById(p.currentId)
+        .scrollIntoView({
+          behavior: "auto",
+          block: "center"
+        });
+
+    } else {
+
+      window.scrollTo(
+        0,
+        p.scrollY || 0
+      );
+
+    }
+
+  },100);
+
+  return true;
+}
+
+
+/* ===== 답 고를 때마다 자동저장 ===== */
+
+const originalChoose = choose;
+
+choose = function(id,n){
+
+  state.currentId = id;
+
+  originalChoose(id,n);
+
+  saveExamProgress();
+
+};
+
+
+/* ===== 새 시험 시작하면 그 시험을 임시저장 ===== */
+
+const originalLaunch = launch;
+
+launch = function(
+  qs,
+  title,
+  mode,
+  round
+){
+
+  originalLaunch(
+    qs,
+    title,
+    mode,
+    round
+  );
+
+  if(qs.length){
+    state.currentId = qs[0].id;
+  }
+
+  saveExamProgress();
+
+};
+
+
+/* ===== 스크롤하면 현재 보고 있는 문제 저장 ===== */
+
+window.addEventListener(
+  "scroll",
+  function(){
+
+    if(state.screen !== "exam"){
+      return;
+    }
+
+    clearTimeout(
+      progressScrollTimer
+    );
+
+    progressScrollTimer =
+      setTimeout(() => {
+
+        const cards =
+          [...document.querySelectorAll(
+            ".question[id]"
+          )];
+
+        let nearest = null;
+        let distance = Infinity;
+
+        cards.forEach(el => {
+
+          const d =
+            Math.abs(
+              el.getBoundingClientRect().top
+              - 170
+            );
+
+          if(d < distance){
+
+            distance = d;
+            nearest = el;
+
+          }
+
+        });
+
+        if(nearest){
+          state.currentId =
+            nearest.id;
+        }
+
+        saveExamProgress();
+
+      },150);
+
+  },
+  {passive:true}
+);
+
+
+/* ===== 앱/브라우저 나갈 때도 한번 더 저장 ===== */
+
+window.addEventListener(
+  "pagehide",
+  saveExamProgress
+);
+
+document.addEventListener(
+  "visibilitychange",
+  function(){
+
+    if(document.hidden){
+      saveExamProgress();
+    }
+
+  }
+);
+
+
+/* ===== 답안 제출 완료하면 임시저장 삭제 ===== */
+
+const originalSubmitExam =
+  submitExam;
+
+submitExam = function(){
+
+  originalSubmitExam();
+
+  /*
+    채점 화면으로 넘어간 경우만 삭제
+    제출 취소했으면 그대로 유지
+  */
+  if(state.screen === "result"){
+
+    deleteExamProgress();
+
+  }
+
+};
+
+
+/* ===== 나가기 눌러도 진행상황은 보존 ===== */
+
+const originalGoHome =
+  goHome;
+
+goHome = function(){
+
+  saveExamProgress();
+
+  originalGoHome();
+
+};
+
+
+/* ===== 사이트 다시 열었을 때 자동 이어풀기 ===== */
+
+setTimeout(() => {
+
+  resumeExamProgress();
+
+},50);
+
+</script>
 <body>
 
 <div id="app"></div>

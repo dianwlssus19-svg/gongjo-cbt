@@ -576,7 +576,7 @@ function homeHTML(){
      </h2>
 
      <p>
-      1~4회에서 틀린 문제만 모아 다시 풉니다.
+      1~8회에서 틀린 문제만 모아 다시 풉니다.
      </p>
 
      <button
@@ -693,10 +693,31 @@ function startWrong(n){
 
 function startRandom(){
 
- launch(
+ const all=allQuestions();
+
+ const subject1=
   shuffle(
-   allQuestions()
-  ).slice(0,80),
+   all.filter(q=>q.subject===1)
+  ).slice(0,30);
+
+ const subject2=
+  shuffle(
+   all.filter(q=>q.subject===2)
+  ).slice(0,20);
+
+ const subject3=
+  shuffle(
+   all.filter(q=>q.subject===3)
+  ).slice(0,30);
+
+ const qs=[
+  ...subject1,
+  ...subject2,
+  ...subject3
+ ];
+
+ launch(
+  qs,
   "랜덤 실전 80문항",
   "random",
   null
